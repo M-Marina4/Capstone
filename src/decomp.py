@@ -48,7 +48,7 @@ def compute_time_series_drift_scores(q1_data, q3_data, mi_lhd_score, period=90):
                 'decomposition_success': True
             }
         except Exception as e:
-            print(f"   ⚠️  Decomposition warning: {e}")
+            print(f"Decomposition warning: {e}")
             return {
                 'trend_component': mi_lhd_score * 0.7,
                 'seasonal_component': mi_lhd_score * 0.2,

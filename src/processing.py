@@ -57,9 +57,9 @@ def create_q1q3_datasets(csv_path="data/metadata/q1q3_daytime_extracted.csv",
     q1_df = df[df['quarter'] == 1].copy()
     q3_df = df[df['quarter'] == 3].copy()
     
-    print(f"✅ Loaded Q1 (daytime): {len(q1_df)} images, {q1_df['year'].nunique()} years")
-    print(f"✅ Loaded Q3 (daytime): {len(q3_df)} images, {q3_df['year'].nunique()} years")
-    print(f"✅ Daynight verification: All values are {df['daynight'].unique()}")
+    print(f" Loaded Q1 (daytime): {len(q1_df)} images, {q1_df['year'].nunique()} years")
+    print(f" Loaded Q3 (daytime): {len(q3_df)} images, {q3_df['year'].nunique()} years")
+    print(f" Daynight verification: All values are {df['daynight'].unique()}")
     
     return q1_df, q3_df
 
@@ -82,7 +82,7 @@ def extract_histogram_features(image_path, bins=256):
         hist = hist / (hist.sum() + 1e-8)
         return hist
     except Exception as e:
-        print(f"⚠️  Error processing {image_path}: {e}")
+        print(f"Error processing {image_path}: {e}")
         return np.zeros(bins * 3)
 
 def extract_statistical_features(image_path):
@@ -106,7 +106,7 @@ def extract_statistical_features(image_path):
         
         return np.array(stats)
     except Exception as e:
-        print(f"⚠️  Error processing {image_path}: {e}")
+        print(f"Error processing {image_path}: {e}")
         return np.zeros(12)
 
 def batch_extract_features(df, img_base="data/organized_images", feature_type='histogram'):
@@ -135,7 +135,7 @@ def batch_extract_features(df, img_base="data/organized_images", feature_type='h
         elif 'Q3' in time_tag:
             quarter = 3
         else:
-            print(f"⚠️  Skipping {image_name}: unable to determine quarter from {row['time_tag']}")
+            print(f"Error processing {image_name}: unable to determine quarter from {row['time_tag']}")
             continue
         
         # Construct path
