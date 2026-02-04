@@ -23,7 +23,7 @@ ENV/
 # Data (IMPORTANT)
 # ===============================
 data/raw/
-data/processed/
+data/organized_images/
 *.zip
 *.jpg
 *.jpeg
