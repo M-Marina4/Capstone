@@ -45,7 +45,7 @@ def metadata_invariant_latent_histogram_divergence(latent_q1, latent_q3, bins=32
     # Return mean divergence across dimensions
     return float(np.mean(divergences))
 
-def spatio_temporal_kernel_alignment(latent_q1, latent_q3, kernel='rbf', gamma=1.0):
+def spatio_temporal_kernel_alignment(latent_q1, latent_q3, kernel='rbf', gamma='auto'):
     """
     STKA: Spatio-Temporal Kernel Alignment [13]
     
@@ -64,31 +64,45 @@ def spatio_temporal_kernel_alignment(latent_q1, latent_q3, kernel='rbf', gamma=1
     if len(latent_q1) < 2 or len(latent_q3) < 2:
         return 1.0
     
-    # Handle mismatched sample sizes by using minimum count
+    # Subsample for computational efficiency (gram matrix is O(n^2))
+    max_samples = 200
     min_samples = min(len(latent_q1), len(latent_q3))
-    latent_q1_aligned = latent_q1[:min_samples]
-    latent_q3_aligned = latent_q3[:min_samples]
+    if min_samples > max_samples:
+        rng = np.random.RandomState(42)
+        idx_q1 = rng.choice(len(latent_q1), max_samples, replace=False)
+        idx_q3 = rng.choice(len(latent_q3), max_samples, replace=False)
+        latent_q1_aligned = latent_q1[idx_q1]
+        latent_q3_aligned = latent_q3[idx_q3]
+    else:
+        latent_q1_aligned = latent_q1[:min_samples]
+        latent_q3_aligned = latent_q3[:min_samples]
     
     def gram_matrix(X, kernel='rbf', gamma=1.0):
-        """Compute normalized gram matrix."""
-        n = X.shape[0]
-        G = np.zeros((n, n))
-        
-        for i in range(n):
-            for j in range(i, n):
-                if kernel == 'rbf':
-                    dist_sq = np.sum((X[i] - X[j])**2)
-                    G[i, j] = np.exp(-gamma * dist_sq)
-                else:  # linear
-                    G[i, j] = np.dot(X[i], X[j])
-                
-                if i != j:
-                    G[j, i] = G[i, j]
+        """Compute normalized gram matrix (vectorized)."""
+        if kernel == 'rbf':
+            sq_norms = np.sum(X**2, axis=1)
+            sq_dists = sq_norms[:, None] + sq_norms[None, :] - 2 * X @ X.T
+            sq_dists = np.maximum(sq_dists, 0)  # Numerical stability
+            G = np.exp(-gamma * sq_dists)
+        else:  # linear
+            G = X @ X.T
         
         # Normalize
         G_norm = np.linalg.norm(G, 'fro')
         return G / (G_norm + 1e-8) if G_norm > 0 else G
     
+    # Adaptive gamma: median heuristic for RBF bandwidth selection
+    if gamma == 'auto':
+        from scipy.spatial.distance import pdist
+        combined = np.vstack([latent_q1_aligned, latent_q3_aligned])
+        if len(combined) > 500:
+            rng = np.random.RandomState(42)
+            subset_idx = rng.choice(len(combined), 500, replace=False)
+            dists = pdist(combined[subset_idx], 'sqeuclidean')
+        else:
+            dists = pdist(combined, 'sqeuclidean')
+        gamma = 1.0 / (np.median(dists) + 1e-8)
+
     # Compute gram matrices on aligned data
     K_q1 = gram_matrix(latent_q1_aligned, kernel, gamma)
     K_q3 = gram_matrix(latent_q3_aligned, kernel, gamma)
@@ -106,7 +120,7 @@ def compute_euclidean_drift(latent_q1, latent_q3):
     mean_q3 = latent_q3.mean(axis=0)
     return float(euclidean(mean_q1, mean_q3))
 
-def analyze_drift(q1_data, q3_data, model=None, device='cpu'):
+def analyze_drift(q1_data, q3_data, model=None, device='cpu', q1_features=None, q3_features=None):
     """
     Analyze feature drift using MI-LHD and STKA metrics.
     
@@ -115,18 +129,23 @@ def analyze_drift(q1_data, q3_data, model=None, device='cpu'):
         q3_data: Q3 DataFrame
         model: Trained autoencoder (optional)
         device: 'cpu' or 'cuda'
+        q1_features: Pre-computed Q1 features (optional, avoids re-extraction)
+        q3_features: Pre-computed Q3 features (optional, avoids re-extraction)
     
     Returns:
         dict: Drift metrics and latent representations
     """
-    from processing import batch_extract_features
-    
-    # Extract histogram features
-    print("Extracting image features (Q1)...")
-    q1_features, q1_paths = batch_extract_features(q1_data, feature_type='histogram')
-    
-    print("Extracting image features (Q3)...")
-    q3_features, q3_paths = batch_extract_features(q3_data, feature_type='histogram')
+    if q1_features is None or q3_features is None:
+        from processing import batch_extract_features
+        
+        # Extract histogram features
+        print("Extracting image features (Q1)...")
+        q1_features, q1_paths = batch_extract_features(q1_data, feature_type='histogram')
+        
+        print("Extracting image features (Q3)...")
+        q3_features, q3_paths = batch_extract_features(q3_data, feature_type='histogram')
+    else:
+        print("Using pre-computed features...")
     
     # Get latent representations
     if model is not None:
@@ -158,5 +177,5 @@ def analyze_drift(q1_data, q3_data, model=None, device='cpu'):
         'euclidean': euclidean_dist,
         'latent_q1': latent_q1,
         'latent_q3': latent_q3,
-        'drift_magnitude': (1 - stka) * 100  # Percentage drift
+        'drift_magnitude': (0.5 * mi_lhd + 0.3 * (1 - stka) + 0.2 * min(1.0, euclidean_dist)) * 100
     }

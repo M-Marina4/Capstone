@@ -25,7 +25,7 @@ def load_metadata(csv_path="data/metadata/q1q3_daytime_extracted.csv"):
     return df[df['date'].notna()].copy()
 
 def create_q1q3_datasets(csv_path="data/metadata/q1q3_daytime_extracted.csv", 
-                         img_base="data/organized_images"):
+                         img_base="data/organized_images/organized_images"):
     """Create Q1 and Q3 datasets from pre-filtered metadata and organized images.
     
     Args:
@@ -109,7 +109,7 @@ def extract_statistical_features(image_path):
         print(f"Error processing {image_path}: {e}")
         return np.zeros(12)
 
-def batch_extract_features(df, img_base="data/organized_images", feature_type='histogram'):
+def batch_extract_features(df, img_base="data/organized_images/organized_images", feature_type='histogram'):
     """
     Batch extract features from image paths.
     
@@ -152,8 +152,22 @@ def batch_extract_features(df, img_base="data/organized_images", feature_type='h
     return np.array(features), paths
 
 def add_temporal_metadata(df):
-    """Add temporal features for drift analysis."""
+    """Add temporal features and derived columns for drift analysis."""
     df['day_of_year'] = df['date'].dt.dayofyear
     df['month'] = df['date'].dt.month
     df['day_of_week'] = df['date'].dt.dayofweek
+    
+    # Map column names for validator compatibility
+    if 'lat' in df.columns and 'gps_lat' not in df.columns:
+        df['gps_lat'] = pd.to_numeric(df['lat'], errors='coerce')
+        df['gps_lon'] = pd.to_numeric(df['lon'], errors='coerce')
+    
+    # Compute brightness from RGB if not present
+    if 'brightness' not in df.columns and 'red' in df.columns:
+        r = pd.to_numeric(df['red'], errors='coerce').fillna(0)
+        g = pd.to_numeric(df['green'], errors='coerce').fillna(0)
+        b = pd.to_numeric(df['blue'], errors='coerce').fillna(0)
+        # Perceived luminance (ITU-R BT.601)
+        df['brightness'] = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
+    
     return df

@@ -72,10 +72,10 @@ class DriftTypeClassifier:
         )
         
         # Classify based on score comparison
-        if virtual_score > 0.6 and real_score < 0.4:
+        if virtual_score > 0.55 and virtual_score > real_score + 0.15:
             classification['drift_type'] = 'VIRTUAL'
             classification['confidence'] = virtual_score
-        elif real_score > 0.6 and virtual_score < 0.4:
+        elif real_score > 0.55 and real_score > virtual_score + 0.15:
             classification['drift_type'] = 'REAL'
             classification['confidence'] = real_score
         else:
@@ -136,7 +136,7 @@ class DriftTypeClassifier:
         mi_lhd_indicator = min(1.0, mi_lhd / 0.5)
         
         # Fault detection rate changes: sign of sensor problems
-        fault_indicator = min(1.0, fault_delta / 0.1)
+        fault_indicator = min(1.0, fault_delta / 0.2)
         
         # Low metadata consistency: something is wrong
         consistency_bad_indicator = 1.0 - metadata_consistency
@@ -195,7 +195,7 @@ class MetadataAnomalyDetector:
         
         # Fault detection anomaly: large change in fault rate
         fault_delta = abs(validation_results.get('fault_delta', 0))
-        anomalies['fault_detection_anomaly'] = self._score_anomaly(fault_delta, threshold=0.05)
+        anomalies['fault_detection_anomaly'] = self._score_anomaly(fault_delta, threshold=0.15)
         
         # Confidence anomaly: large change in model confidence
         confidence_delta = abs(validation_results.get('confidence_delta', 0))

@@ -63,7 +63,13 @@ class ReconstructionAnomalyDetector:
             raise ValueError("Detector not fitted. Call fit_on_q1() first.")
         
         anomaly_flags = q3_reconstruction_errors > self.threshold
-        anomaly_scores = np.clip(q3_reconstruction_errors / self.threshold, 0, 1)
+        # Score: 0 for samples at/below Q1 mean (normal), 1 for samples at/above threshold
+        q1_mean = float(np.mean(self.q1_errors))
+        score_range = self.threshold - q1_mean
+        if score_range > 0:
+            anomaly_scores = np.clip((q3_reconstruction_errors - q1_mean) / score_range, 0, 1)
+        else:
+            anomaly_scores = (q3_reconstruction_errors > self.threshold).astype(float)
         
         return {
             'anomaly_flags': anomaly_flags,
@@ -71,9 +77,9 @@ class ReconstructionAnomalyDetector:
             'anomalous_count': int(np.sum(anomaly_flags)),
             'anomalous_ratio': float(np.mean(anomaly_flags)),
             'threshold': float(self.threshold),
-            'q1_mean_error': float(np.mean(self.q1_errors)),
+            'q1_mean_error': q1_mean,
             'q3_mean_error': float(np.mean(q3_reconstruction_errors)),
-            'error_increase': float(np.mean(q3_reconstruction_errors) / np.mean(self.q1_errors))
+            'error_increase': float(np.mean(q3_reconstruction_errors) / (q1_mean + 1e-8))
         }
 
 
@@ -113,7 +119,7 @@ class MetadataConsistencyAnomalyDetector:
         
         # Normalize deltas to [0, 1]
         rgb_score = self._normalize_score(rgb_delta, max_val=0.3)
-        fault_score = self._normalize_score(fault_delta, max_val=0.1)
+        fault_score = self._normalize_score(fault_delta, max_val=0.2)
         confidence_score = self._normalize_score(confidence_delta, max_val=0.2)
         gps_score = self._normalize_score(gps_delta, max_val=100.0)
         consistency_score = 1.0 - consistency  # Inverted: low consistency = anomalous
@@ -160,7 +166,7 @@ class AnomalyDriftEnsemble:
     
     def __init__(self):
         """Initialize ensemble"""
-        self.reconstruction_detector = ReconstructionAnomalyDetector(threshold_percentile=90)
+        self.reconstruction_detector = ReconstructionAnomalyDetector(threshold_percentile=95)
         self.metadata_detector = MetadataConsistencyAnomalyDetector()
     
     def fit(self, q1_reconstruction_errors):
@@ -191,9 +197,9 @@ class AnomalyDriftEnsemble:
         metadata_results = self.metadata_detector.compute_metadata_anomaly_score(validation_results)
         metadata_score = metadata_results['overall_anomaly_score']
         
-        # Ensemble: average the two pathways
-        # (could use weighted average or voting if preferred)
-        ensemble_scores = (recon_scores * 0.5) + (metadata_score * 0.5)
+        # Ensemble: reconstruction is per-sample, metadata provides global context
+        # Weight reconstruction heavily for per-sample detection
+        ensemble_scores = recon_scores * 0.7 + np.full_like(recon_scores, metadata_score) * 0.3
         ensemble_flags = ensemble_scores > 0.5
         
         return {
