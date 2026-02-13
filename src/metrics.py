@@ -1,6 +1,5 @@
 """
 Drift detection metrics: MI-LHD and STKA with latent representations.
-Reference: Paper Section 2 - Methodology
 """
 
 import numpy as np

@@ -167,3 +167,12 @@ def save_model(model, path='models/autoencoder_model.pkl'):
     with open(path, 'wb') as f:
         pickle.dump(model, f)
     print(f"Model saved to {path}")
+
+def load_model(path='models/autoencoder_model.pkl'):
+    """Load trained model from disk."""
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Model not found at {path}")
+    with open(path, 'rb') as f:
+        model = pickle.load(f)
+    print(f"Model loaded from {path}")
+    return model
