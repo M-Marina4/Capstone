@@ -65,7 +65,7 @@ def spatio_temporal_kernel_alignment(latent_q1, latent_q3, kernel='rbf', gamma='
         return 1.0
     
     # Subsample for computational efficiency (gram matrix is O(n^2))
-    max_samples = 200
+    max_samples = 1000
     min_samples = min(len(latent_q1), len(latent_q3))
     if min_samples > max_samples:
         rng = np.random.RandomState(42)
@@ -95,9 +95,9 @@ def spatio_temporal_kernel_alignment(latent_q1, latent_q3, kernel='rbf', gamma='
     if gamma == 'auto':
         from scipy.spatial.distance import pdist
         combined = np.vstack([latent_q1_aligned, latent_q3_aligned])
-        if len(combined) > 500:
+        if len(combined) > 2000:
             rng = np.random.RandomState(42)
-            subset_idx = rng.choice(len(combined), 500, replace=False)
+            subset_idx = rng.choice(len(combined), 2000, replace=False)
             dists = pdist(combined[subset_idx], 'sqeuclidean')
         else:
             dists = pdist(combined, 'sqeuclidean')
@@ -119,6 +119,112 @@ def compute_euclidean_drift(latent_q1, latent_q3):
     mean_q1 = latent_q1.mean(axis=0)
     mean_q3 = latent_q3.mean(axis=0)
     return float(euclidean(mean_q1, mean_q3))
+
+
+def bootstrap_drift_confidence(latent_q1, latent_q3, n_bootstrap=20, sample_frac=0.7, seed=42):
+    """
+    Bootstrap confidence intervals for MI-LHD and STKA.
+    
+    Runs n_bootstrap random subsamples and computes metrics each time,
+    yielding mean, std, and 95% CI for each metric.
+    
+    Args:
+        latent_q1: Q1 latent representations
+        latent_q3: Q3 latent representations
+        n_bootstrap: Number of bootstrap iterations
+        sample_frac: Fraction to subsample each iteration
+        seed: Random seed for reproducibility
+    
+    Returns:
+        dict with 'mi_lhd' and 'stka' sub-dicts containing mean, std, ci_low, ci_high
+    """
+    rng = np.random.RandomState(seed)
+    mi_lhd_scores = []
+    stka_scores = []
+    
+    n_q1 = max(2, int(len(latent_q1) * sample_frac))
+    n_q3 = max(2, int(len(latent_q3) * sample_frac))
+    
+    for i in range(n_bootstrap):
+        idx_q1 = rng.choice(len(latent_q1), n_q1, replace=False)
+        idx_q3 = rng.choice(len(latent_q3), n_q3, replace=False)
+        sub_q1 = latent_q1[idx_q1]
+        sub_q3 = latent_q3[idx_q3]
+        
+        mi = metadata_invariant_latent_histogram_divergence(sub_q1, sub_q3)
+        st = spatio_temporal_kernel_alignment(sub_q1, sub_q3)
+        mi_lhd_scores.append(mi)
+        stka_scores.append(st)
+    
+    mi_arr = np.array(mi_lhd_scores)
+    st_arr = np.array(stka_scores)
+    
+    return {
+        'mi_lhd': {
+            'mean': float(np.mean(mi_arr)),
+            'std': float(np.std(mi_arr)),
+            'ci_low': float(np.percentile(mi_arr, 2.5)),
+            'ci_high': float(np.percentile(mi_arr, 97.5)),
+        },
+        'stka': {
+            'mean': float(np.mean(st_arr)),
+            'std': float(np.std(st_arr)),
+            'ci_low': float(np.percentile(st_arr, 2.5)),
+            'ci_high': float(np.percentile(st_arr, 97.5)),
+        },
+        'n_bootstrap': n_bootstrap,
+    }
+
+
+def per_camera_drift(latent_q1, latent_q3, q1_cameras, q3_cameras):
+    """
+    Compute drift metrics per camera.
+    
+    Args:
+        latent_q1: Q1 latent representations (n × d)
+        latent_q3: Q3 latent representations (n × d)
+        q1_cameras: Array/Series of camera IDs aligned with latent_q1
+        q3_cameras: Array/Series of camera IDs aligned with latent_q3
+    
+    Returns:
+        list of dicts, one per camera, sorted by drift_magnitude descending
+    """
+    q1_cameras = np.asarray(q1_cameras)
+    q3_cameras = np.asarray(q3_cameras)
+    
+    all_cameras = sorted(set(q1_cameras) | set(q3_cameras))
+    results = []
+    
+    for cam in all_cameras:
+        q1_mask = q1_cameras == cam
+        q3_mask = q3_cameras == cam
+        n_q1 = int(q1_mask.sum())
+        n_q3 = int(q3_mask.sum())
+        
+        if n_q1 < 5 or n_q3 < 5:
+            results.append({'camera': cam, 'n_q1': n_q1, 'n_q3': n_q3,
+                            'mi_lhd': None, 'stka': None, 'drift_magnitude': None,
+                            'note': 'insufficient_samples'})
+            continue
+        
+        sub_q1 = latent_q1[q1_mask]
+        sub_q3 = latent_q3[q3_mask]
+        
+        mi = metadata_invariant_latent_histogram_divergence(sub_q1, sub_q3)
+        st = spatio_temporal_kernel_alignment(sub_q1, sub_q3)
+        euc = compute_euclidean_drift(sub_q1, sub_q3)
+        drift_mag = (0.5 * mi + 0.3 * (1 - st) + 0.2 * min(1.0, euc)) * 100
+        
+        results.append({
+            'camera': cam, 'n_q1': n_q1, 'n_q3': n_q3,
+            'mi_lhd': round(mi, 4), 'stka': round(st, 4),
+            'euclidean': round(euc, 4), 'drift_magnitude': round(drift_mag, 2)
+        })
+    
+    # Sort by drift magnitude descending
+    results.sort(key=lambda x: x.get('drift_magnitude') or 0, reverse=True)
+    return results
+
 
 def analyze_drift(q1_data, q3_data, model=None, device='cpu', q1_features=None, q3_features=None):
     """
