@@ -1,365 +1,191 @@
-# Concept Drift Detection in IoT Sensor Networks
-## Capstone Project: Monitoring Feature Drift for Reliable Continuous Data Streams
+# Seasonal Concept Drift Detection in IoT Sticky-Trap Imagery
 
-**Author:** Marina Melkonyan  
-**Institution:** American University of Armenia  
-**Focus Species:** *Punica granatum* L. 'Wonderful' (Pomegranate)  
-**Study Period:** 2021-2025 Growing Seasons  
-**Deployment:** 9 Independent Raspberry Pi IoT Sensors
-
----
-
-## 📋 Project Overview
-
-This capstone project addresses **concept drift detection** in long-term IoT sensor networks through unsupervised deep learning. The core challenge: production models degrade over time as data distributions naturally shift due to seasonal changes, environmental drift, and sensor aging. This project develops and validates a comprehensive pipeline to detect these shifts automatically.
-
-### Key Innovation
-Rather than relying on single-metric detection (vulnerable to bias), the pipeline employs a **3-layer architecture** combining:
-- **Layer 1:** Core autoencoder-based reconstruction error analysis
-- **Layer 2:** Multiple independent drift detection pathways with confidence scoring
-- **Layer 3:** Comprehensive validation and anomaly attribution
+**Author:** Marina Melkonyan
+**Institution:** American University of Armenia
+**Species:** *Halyomorpha halys* (Brown Marmorated Stink Bug, BMSB)
+**Dataset:** 476 images (1920×1080) from IoT sticky-trap camera, Jun–Nov 2024
+**Seasonal Split:** Q3 (Jul–Sep) reference vs Q4 (Oct–Nov) drift target
 
 ---
 
-## 🎯 Research Questions
+## Project Overview
 
-This analysis addresses two primary research questions:
+This capstone project detects **seasonal concept drift** in IoT pest-monitoring imagery using unsupervised deep learning. Autoencoders are trained on Q3 (summer) sticky-trap images to learn the reference distribution; reconstruction error on Q4 (autumn) images reveals distributional shift caused by seasonal environmental changes and trap degradation.
 
-### **RQ1: Mean Time To Detection (MTTD)**
-> How does the mean time to detection (MTTD) of the validator change when applied to cross-domain data streams compared to its baseline performance in the source domain?
+Two notebooks address the research questions. The **sensitivity analysis notebook is the main notebook** producing the core results.
 
-**Key Metrics:**
-- Detection latency (hours from start of target domain)
-- Detection rate (% of drift samples flagged above threshold)
-- Cross-domain penalty factors (domain shift impact quantification)
+---
 
-**Results Location:** [`results/mttd_analysis.csv`](results/mttd_analysis.csv)
+## Research Questions
 
-### **RQ2: Reconstruction Loss Sensitivity & Environmental Variance**
+### RQ: Reconstruction Loss Sensitivity & Environmental Variance *(main notebook)*
 > What is the sensitivity of unsupervised reconstruction loss as a trigger for drift adaptation in IoT imagery, and how does this sensitivity correlate with environmental variance across long-term data streams?
 
-**Key Metrics:**
-- ROC-AUC scores (reconstruction loss discriminative power)
-- Optimal F1-achieving thresholds
-- Pearson correlation (sensitivity ↔ environmental variance)
-- Environmental variance components (brightness, contrast, saturation)
+- Compare four autoencoder architectures (ConvAE, VAE, ResAttnAE, MemAE)
+- Evaluate six drift detectors (ADWIN, Page-Hinkley, CUSUM, KS-Windowed, DDM, EDDM)
+- Sweep detection thresholds (50th–98th percentile) for sensitivity curves
+- Correlate reconstruction error with environmental metrics (brightness, contrast, saturation, edge density, entropy, color divergence)
+- Bootstrap confidence intervals for statistical robustness
+- Comprehensive evaluation: ROC-AUC, F1, MTTD, Cohen's d, Mann-Whitney U
 
-**Results Location:** [`results/sensitivity_analysis.csv`](results/sensitivity_analysis.csv)
+**Notebook:** [`notebooks/sensitivity_analysis_rq.ipynb`](notebooks/sensitivity_analysis_rq.ipynb) *(main)*
+**Results:** `results/sensitivity_comprehensive_eval.csv`, `results/sensitivity_correlation_analysis.csv`, `results/sensitivity_detector_results.csv`, `results/sensitivity_bootstrap_ci.csv`
 
----
+### Supporting: Seasonal Drift Detection & MTTD
+> How quickly can an autoencoder-based system detect seasonal concept drift when monitoring transitions from summer (Q3) to autumn (Q4)?
 
-## 🏗️ Pipeline Architecture
+- Train a single deep convolutional autoencoder on Q3 images
+- Measure reconstruction error increase on Q4
+- Compute Mean Time To Detect (MTTD) using consecutive-detection criterion
+- Analyze drift by trap replacement cycle
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Phase 1: Data Discovery & Preprocessing                   │
-│  • Load 2021 (baseline) & 2022 (target) image time series   │
-│  • Q1/Q3 temporal windowing (16-hour quarters)              │
-│  • Per-sensor train/validation/test splits                  │
-└──────────────────────┬──────────────────────────────────────┘
-                       ↓
-┌─────────────────────────────────────────────────────────────┐
-│  Phase 2-3: Autoencoder Training                            │
-│  • Three model architectures (ConvAE, ResAttnAE, TransAE)   │
-│  • Per-sensor training with early stopping                  │
-│  • Latent representation extraction (bottleneck)            │
-└──────────────────────┬──────────────────────────────────────┘
-                       ↓
-┌─────────────────────────────────────────────────────────────┐
-│  Phase 4: Drift Detection (Multiple Pathways)               │
-│  • Path 1: Mean Shift (L2 distance)                         │
-│  • Path 2: Covariance Shift (Frobenius norm)                │
-│  • Path 3: Kolmogorov-Smirnov Tests (per-dimension)         │
-│  • Path 4: Mahalanobis Distance (robust metrics)            │
-│  → Consensus voting for drift confidence                    │
-└──────────────────────┬──────────────────────────────────────┘
-                       ↓
-┌─────────────────────────────────────────────────────────────┐
-│  Phase 5: Drift Classification & Analysis                  │
-│  • Virtual/Real/Mixed drift categorization                  │
-│  • Environmental metadata correlation                       │
-│  • Time-series decomposition for drift attribution          │
-│  • MTTD and sensitivity analysis                            │
-└──────────────────────┬──────────────────────────────────────┘
-                       ↓
-┌─────────────────────────────────────────────────────────────┐
-│  Phase 6: Validation & Final Reporting                      │
-│  • Statistical significance testing                         │
-│  • ROC curve analysis                                       │
-│  • Environmental variance correlation                       │
-│  • Comprehensive CSV & visualization export                 │
-└─────────────────────────────────────────────────────────────┘
-```
+**Notebook:** [`notebooks/seasonal_drift_detection.ipynb`](notebooks/seasonal_drift_detection.ipynb) *(supporting)*
+**Results:** `results/seasonal_drift_results.csv`, `results/seasonal_mttd_analysis.csv`
 
 ---
 
-## 📊 Models & Technologies
+## Dataset
 
-### Deep Learning Models
+**Source:** Kargar, A., Zorbas, D., Gaffney, M., O'Flynn, B., & Tedesco, S. (2024). *Image Dataset of Brown Marmorated Stink Bug (BMSB) or Halyomorpha Halys (HH)* [Data set]. Zenodo. https://doi.org/10.5281/zenodo.7887045
 
-Three autoencoder architectures for robustness and comparison:
+| Property | Value |
+|----------|-------|
+| Total images | 476 |
+| Resolution | 1920×1080 px |
+| Capture device | IoT camera (sticky trap) |
+| Location | Orchard in Italy |
+| Period | June–November 2024 |
+| Trap replacements | 9 sequential over the season |
+| Annotations | Polygon JSON + binary masks per HH instance |
+| Metadata CSV | Filename, HH count, trap ID |
 
-| Model | Architecture | Key Feature | Best For |
-|-------|--------------|-------------|----------|
-| **ConvAE** | Convolutional Encoder-Decoder | Simple, fast inference | Baseline comparison |
-| **ResAttnAE** | Residual Blocks + Attention | Attention mechanisms for important features | Feature importance |
-| **ConvTransAE** | Transposed Convolution Decoder | Progressive upsampling | Fine-grained reconstruction |
+### Seasonal Split
 
-### Key Technologies
+| Quarter | Months | Role | Note |
+|---------|--------|------|------|
+| Q3 | Jul–Sep 2024 | Reference (70/15/15 train/val/test) | Summer peak season |
+| Q4 | Oct–Nov 2024 | Drift target (100% test) | Autumn late season |
 
-- **Deep Learning:** PyTorch 2.0+
-- **Data Processing:** Pandas, NumPy, Scikit-Image
-- **Statistical Analysis:** SciPy (Mann-Whitney U, KS tests), Scikit-Learn (ROC-AUC)
-- **Visualization:** Matplotlib, Seaborn
-- **Image Processing:** PIL, OpenCV
+> Q2 (June) was excluded due to insufficient sample size (7 images).
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 Capstone/
-├── notebooks/                          # Jupyter analysis notebooks
-│   ├── drift_detection_pipeline.ipynb  # Main analysis (45 cells)
-│   ├── organize_images_by_quarter.ipynb
-│   ├── visualizations.ipynb
-│   └── research_question_analysis_pipeline.ipynb
-│
-├── src/                                # Core Python modules
-│   ├── autoencoder.py                  # Model architectures & training
-│   ├── processing.py                   # Data loading & preprocessing
-│   ├── metrics.py                      # Drift detection metrics
-│   ├── validator.py                    # Statistical validation
-│   ├── decomp.py                       # Time-series decomposition
-│   ├── drift_detectors.py              # Multi-pathway drift detection
-│   ├── drift_classifier.py             # Drift type classification
-│   ├── anomaly_detector.py             # Ensemble anomaly detection
-│   └── __init__.py
+├── notebooks/
+│   ├── sensitivity_analysis_rq.ipynb    # Main — multi-model sensitivity & correlation
+│   └── seasonal_drift_detection.ipynb   # Supporting — single-model drift & MTTD
 │
 ├── data/
-│   ├── raw/
-│   │   └── Dataset_pomegranate_tree_time_series/
-│   │       ├── 2021/
-│   │       │   └── Sensor1-9/         # Q1, Q2, Q3 images
-│   │       └── 2022/
-│   │           └── Sensor1-9/         # Q1, Q2, Q3 images
-│   └── metadata/
-│       ├── q1q3_daytime_extracted.csv # Temporal metadata
-│       └── streetcare-drift-dataset-2021-2025.csv
+│   └── raw/
+│       └── DatasetV3/
+│           ├── Images/                  # 476 JPEG sticky-trap images
+│           ├── Annotations/
+│           │   ├── HH_Polygons/         # Per-image JSON polygon annotations
+│           │   └── Masks/               # Binary masks of HH instances
+│           ├── Num_HHs.csv              # HH count + trap ID per image
+│           └── README.txt               # Original dataset documentation
 │
-├── results/                            # Output CSV files & analysis
-│   ├── drift_detection_results_comparison.csv    # Model comparison
-│   ├── drift_detection_results.csv                # Individual model results
-│   ├── capstone_results.csv                       # Aggregated findings
-│   ├── mttd_analysis.csv                          # RQ1 results
-│   └── sensitivity_analysis.csv                   # RQ2 results
+├── results/                             # Generated CSV outputs
+│   ├── sensitivity_comprehensive_eval.csv   # Main: full eval table
+│   ├── sensitivity_detector_results.csv     # Main: detector comparison
+│   ├── sensitivity_correlation_analysis.csv # Main: env ↔ error correlations
+│   ├── sensitivity_bootstrap_ci.csv         # Main: bootstrap CIs
+│   ├── sensitivity_env_metrics_errors.csv   # Main: per-image env metrics
+│   ├── sensitivity_sweep_*.csv              # Main: threshold sweep per model/quarter
+│   ├── seasonal_drift_results.csv           # Supporting: drift detection statistics
+│   ├── seasonal_mttd_analysis.csv           # Supporting: MTTD per quarter
+│   └── seasonal_per_image_errors.csv        # Supporting: per-image reconstruction errors
 │
-├── main.py                             # CLI entry point
-├── README.md                           # This file
+└── README.md
 ```
 
 ---
 
-## 🔍 Dataset Details
+## Models
 
-### Sensors & Coverage
-- **9 Independent Sensors** deployed across pomegranate plantings
-- **2 Years** of continuous monitoring (2021-2022)
-- **Quarterly Quarters (Q1-Q3)** image collections per year
-- **High-resolution JPEG** images from Raspberry Pi cameras
-- **Timestamped Metadata** with environmental context
+| Model | Architecture | Loss | Reference |
+|-------|-------------|------|-----------|
+| **ConvAE** | 3-block conv encoder-decoder, FC bottleneck | MSE | Baseline |
+| **VAE** | Same conv backbone + reparameterization trick | ELBO (MSE + β·KL) | Kingma & Welling 2014 |
+| **ResAttnAE** | Residual blocks + Squeeze-and-Excitation attention | MSE | He+2016, Hu+2018 |
+| **MemAE** | Memory-augmented autoencoder with prototype bank | MSE + entropy reg. | Gong et al., ICCV 2019 |
 
-### Data Characteristics
-- **2021 (Source Domain):** Baseline distribution, ~53-70 training images per sensor
-- **2022 (Target Domain):** Natural seasonal/environmental drift, ~84-105 test images per sensor
-- **Environmental Variables:** Brightness, contrast, saturation changes tracked per image
+All models resize input to 128×72 (16:9), use latent dimension 128, and are trained with Adam (lr=1e-3) and early stopping (patience=10).
 
----
+## Drift Detectors
 
-## 📈 Key Results Summary
-
-### Research Question 1: MTTD Analysis
-
-| Metric | Value | Interpretation |
-|--------|-------|-----------------|
-| **Avg MTTD** | ~12-24 hours | Detection typically within 1 day |
-| **MTTD Range** | 0-48 hours | Fast to moderate detection across sensors |
-| **Avg Detection Rate** | >95% | High consistency in flagging drift |
-| **Cross-Domain Penalty** | 1.8-2.0x | Domain shift increases detection latency |
-
-**Finding:** Models trained on 2021 baseline reliably detect significant drift in 2022 data within 1-2 days of seasonal transition.
-
-### Research Question 2: Sensitivity Analysis
-
-| Metric | Value | Interpretation |
-|--------|-------|-----------------|
-| **Avg ROC-AUC** | 0.95-1.0 | Reconstruction loss highly discriminative |
-| **Optimal Threshold** | 90-95th percentile | Conservative thresholds minimize false alarms |
-| **Sensitivity-Variance Corr.** | -0.15 to +0.35 | Weak to moderate relationship |
-| **Best F1 Score** | 0.99+ | Excellent balanced precision/recall |
-
-**Finding:** Reconstruction loss alone is ROBUST across environmental variance—external factors minimally affect detection sensitivity.
+| Detector | Type | Reference |
+|----------|------|-----------|
+| ADWIN | Adaptive windowing | Bifet & Gavaldà 2007 |
+| Page-Hinkley | Sequential cumulative deviation | Page 1954 |
+| CUSUM | Cumulative sum control chart | Page 1954 |
+| KS-Windowed | Sliding-window Kolmogorov-Smirnov | Non-parametric |
+| DDM | Error-rate monitoring | Gama et al. 2004 |
+| EDDM | Error-distance monitoring | Baena-García et al. 2006 |
 
 ---
 
-## 🚀 Running the Pipeline
+## Technologies
+
+- **Deep Learning:** PyTorch
+- **Data Processing:** Pandas, NumPy
+- **Statistical Analysis:** SciPy (Mann-Whitney U, KS tests), Scikit-Learn (ROC-AUC, bootstrap)
+- **Visualization:** Matplotlib, Seaborn
+- **Image Processing:** PIL
+
+---
+
+## Running the Analysis
 
 ### Prerequisites
+
 ```bash
-# Install dependencies
-pip install torch pandas numpy matplotlib seaborn scikit-learn scikit-image pillow scipy
+pip install torch pandas numpy matplotlib seaborn scikit-learn pillow scipy
 ```
 
-### Option 1: Jupyter Notebook (Recommended)
+### Execution
+
+Run the main notebook (top to bottom). The supporting notebook can be run independently.
+
 ```bash
-# Navigate to notebooks folder
 cd notebooks
-
-# Open and run the main pipeline
-jupyter notebook drift_detection_pipeline.ipynb
-
-# Run cells sequentially from top to bottom
-# Expected runtime: 15-30 minutes (depends on GPU availability)
+jupyter notebook sensitivity_analysis_rq.ipynb        # Main analysis
+jupyter notebook seasonal_drift_detection.ipynb        # Supporting (optional)
 ```
 
-### Expected Output Files
-After successful execution:
-- ✅ `drift_detection_results_comparison.csv` (Model metrics comparison)
-- ✅ `mttd_analysis.csv` (RQ1 metrics per sensor)
-- ✅ `sensitivity_analysis.csv` (RQ2 metrics per sensor)
-- ✅ Matplotlib figures (visualizations embedded in notebook)
+Runtime depends on GPU availability; expect 15–30 minutes per notebook on CPU.
+
+### Outputs
+
+After execution, CSV results are written to `results/` and all visualizations are embedded in the notebooks.
 
 ---
 
-## 📊 Output Files Description
+## Key Output Files
 
-### `drift_detection_results_comparison.csv`
-**Purpose:** Compare three model architectures on drift detection
-
-**Columns:**
-- `Sensor_ID`: Which sensor (Sensor1-9)
-- `N_Train/Val/Test_*`: Dataset sizes per split
-- `Conv_Mean_2021/2022`, `Res_Mean_*`, `Trans_Mean_*`: Reconstruction errors per model/year
-- `Conv_Drift_%`, `Res_Drift_%`, `Trans_Drift_%`: % increase 2021→2022
-- `*_P_Value`: Statistical significance (Mann-Whitney U test)
-- `*_Drift_Detected`: Boolean drift detection result
-
-### `mttd_analysis.csv`
-**Purpose:** Quantify detection latency (RQ1)
-
-**Key Columns:**
-- `MTTD_Hours`: Hours until sustained drift detection
-- `Detection_Rate_%`: % of 2022 images flagged above threshold
-- `Cross_Domain_Penalty`: How much slower detection vs baseline
-- `Baseline_Max_Error`: Threshold from 2021 data
-- `Drift_Mean_Error`: Average 2022 reconstruction error
-
-### `sensitivity_analysis.csv`
-**Purpose:** Analyze threshold sensitivity (RQ2)
-
-**Key Columns:**
-- `ROC_AUC`: Receiver Operating Characteristic AUC
-- `Best_F1_Score`: Optimal F1 score achieved
-- `Best_F1_Percentile`: Which threshold percentile achieves it
-- `Brightness_Change`, `Contrast_Change`, `Saturation_Change`: Environmental variance
-- `Env_Variance_Score`: Composite environmental change metric
+| File | Contents |
+|------|----------|
+| `seasonal_drift_results.csv` | Per-quarter drift %, p-value, detection flag |
+| `seasonal_mttd_analysis.csv` | MTTD in frames and hours, detection rate |
+| `seasonal_per_image_errors.csv` | Per-image MSE with quarter, trap, HH count |
+| `sensitivity_comprehensive_eval.csv` | ROC-AUC, F1, precision, recall, Cohen's d per model × quarter |
+| `sensitivity_detector_results.csv` | Detection counts per model × quarter × detector |
+| `sensitivity_correlation_analysis.csv` | Pearson/Spearman/Kendall/MI: env metrics ↔ recon error |
+| `sensitivity_bootstrap_ci.csv` | 95% bootstrap CIs for TPR, FPR, F1, AUC |
+| `sensitivity_sweep_*.csv` | Threshold sweep metrics (50th–98th percentile) per model |
 
 ---
 
-## 📝 Methodology Notes
+## References
 
-### Why Reconstruction Loss?
-- **Interpretable:** Directly reflects model uncertainty on new data
-- **Unsupervised:** No labels required for 2022 data
-- **Sensitive:** Captures subtle distribution shifts
-- **Robust:** Multiple model architectures provide consensus
-
-### Why Multiple Models?
-- **Robustness:** Reduces false alarms from single-model bias
-- **Coverage:** Different architectures excel at different drift types
-- **Confidence:** Agreement across models strengthens conclusions
-- **Generalization:** Prevents overfitting to one approach
-
-### Statistical Validation
-- **Mann-Whitney U Test:** Non-parametric test for difference in error distributions
-- **ROC Curves:** Threshold-dependent performance across sensitivity/specificity trade-off
-- **Pearson Correlation:** Linear relationship between metrics
-- **Early Stopping:** Prevents model overfitting during training
-
----
-
-## 🔧 Configuration
-
-Key configuration parameters (see `drift_detection_pipeline.ipynb` cells 1-3):
-
-```python
-CONFIG = {
-    "data_root": r"C:\Users\melko\Capstone\data\raw",
-    "output_dir": r"C:\Users\melko\Capstone\results",
-    "random_seed": 42,
-    "device": "cuda" if torch.cuda.is_available() else "cpu",
-    "batch_size": 32,
-    "learning_rate": 0.001,
-    "epochs": 100,
-    "early_stopping_patience": 10,
-}
-```
-
----
-
-## 📌 Notebook Cell Structure
-
-### Main Pipeline Notebook (45 cells)
-
-| Cells | Purpose |
-|-------|---------|
-| 1-3 | Configuration, libraries, paths |
-| 4-7 | Data discovery and exploration |
-| 8-15 | Autoencoder architectures (3 models) |
-| 16-25 | Training loops per sensor |
-| 26-35 | Reconstruction error computation |
-| 36-37 | Basic drift statistics |
-| 38-42 | **MTTD Analysis (RQ1)** |
-| 40-42 | **Sensitivity Analysis (RQ2)** |
-| 43 | Comprehensive visualizations |
-| 44 | Research findings summary |
-| 45 | Methodology appendix |
-
----
-
-## 🎓 Research Contributions
-
-This project advances concept drift detection through:
-
-1. **Multi-Model Validation:** Three independent architectures provide robust consensus
-2. **Environmental Correlation:** Quantifies relationship between domain shift severity and detection sensitivity
-3. **MTTD Quantification:** Measures realistic detection latency in cross-domain deployment
-4. **Unsupervised Approach:** No labels required for 2022 data—critical for real IoT systems
-5. **Comprehensive Attribution:** Distinguishes between virtual drift (label distribution), real drift (feature distribution), and measurement drift
-
----
-
-## 📚 References
-
-- **Autoencoders for Anomaly Detection:** Goodfellow et al. (2016)
-- **Concept Drift in Data Streams:** Gama et al. (2014)
-- **Statistical Divergence Tests:** Kolmogorov-Smirnov, Mann-Whitney U
-- **ROC Analysis:** Fawcett (2006)
-
----
-
-## 📧 Contact & Questions
-
-For questions about methodology, results, or implementation, refer to:
-- Notebook markdown cells with research context
-
----
-
-## 📄 License
-
-This capstone project is part of coursework at American University of Armenia.
-
----
-
-**Last Updated:** March 2026  
-**Status:** ✅ Analysis Complete | Results Validated | Ready for Production Review
+- Kargar, A. et al. (2024). Image Dataset of BMSB. Zenodo. https://doi.org/10.5281/zenodo.7887045
+- Kingma, D. P. & Welling, M. (2014). Auto-Encoding Variational Bayes. ICLR.
+- Gong, D. et al. (2019). Memorizing Normality to Detect Anomaly. ICCV.
+- He, K. et al. (2016). Deep Residual Learning. CVPR.
+- Hu, J. et al. (2018). Squeeze-and-Excitation Networks. CVPR.
+- Bifet, A. & Gavaldà, R. (2007). Learning from Time-Changing Data with Adaptive Windowing. SDM.
+- Gama, J. et al. (2004). Learning with Drift Detection. SBIA.
+- Baena-García, M. et al. (2006). Early Drift Detection Method. ECML PKDD Workshop.
