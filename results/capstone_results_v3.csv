@@ -1,0 +1,2 @@
+q1_samples,q3_samples,feature_dim,latent_dim,training_mode,mi_lhd,stka,euclidean_dist,drift_magnitude_pct,permutation_p_value,q1_recon_mse_mean,q3_recon_mse_mean,recon_error_ratio,anomaly_threshold_p95,q3_anomaly_count,q3_anomaly_ratio,final_recon_loss,final_kl_loss
+1919,1889,768,64,Q1_only,0.18129097337761213,0.6737335062444079,0.4384157955646515,27.620859392841403,0.0,0.009267088025808334,0.009748070500791073,1.051902174949646,0.019590968079864973,144,0.07623080995235575,0.215733136733373,0.024329837256421644

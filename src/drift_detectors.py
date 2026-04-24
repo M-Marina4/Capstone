@@ -199,25 +199,30 @@ class DriftConfidenceEstimator:
         
         scores['pathway_2_covariance_shift'] = self._score_pathway(
             enhanced_metrics.get('covariance_shift', 0),
-            baseline=1.0,
-            high=5.0
+            baseline=0.02,
+            high=0.3
         )
         
-        scores['pathway_3_ks_rejection'] = float(enhanced_metrics.get('ks_rejection_rate', 0))
+        scores['pathway_3_ks_rejection'] = self._score_pathway(
+            enhanced_metrics.get('ks_rejection_rate', 0),
+            baseline=0.3,
+            high=0.9
+        )
         
         scores['pathway_4_mahalanobis'] = self._score_pathway(
             enhanced_metrics.get('mahalanobis_distance', 0),
-            baseline=0.5,
-            high=2.0
+            baseline=0.2,
+            high=1.5
         )
         
-        # Overall confidence: average of normalized pathways
+        # Weighted confidence: KS tests get less weight due to large-sample sensitivity
         pathway_scores = [scores['pathway_1_mean_shift'],
                          scores['pathway_2_covariance_shift'],
                          scores['pathway_3_ks_rejection'],
                          scores['pathway_4_mahalanobis']]
+        weights = [0.3, 0.2, 0.2, 0.3]
         
-        overall_confidence = float(np.mean(pathway_scores))
+        overall_confidence = float(np.average(pathway_scores, weights=weights))
         
         # Consistency: how well do multiple pathways agree?
         consistency = float(1.0 - np.std(pathway_scores))
@@ -232,10 +237,9 @@ class DriftConfidenceEstimator:
     
     def _score_pathway(self, value, baseline=0, high=1.0):
         """Convert pathway metric to [0,1] confidence score"""
-        # Normalize: baseline=0.2, high=0.8
         if value <= baseline:
-            return 0.2
+            return 0.0
         elif value >= high:
-            return 0.8
+            return 1.0
         else:
-            return 0.2 + (value - baseline) / (high - baseline) * 0.6
+            return (value - baseline) / (high - baseline)

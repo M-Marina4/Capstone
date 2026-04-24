@@ -79,27 +79,34 @@ def validate_drift(q1_data, q3_data, drift_results):
     # Measure: How well contextual metadata explains detected drift
     metadata_consistency = 1.0 - min(latent_divergence, 1.0)  # If drift is high, metadata should show changes
     
-    # Adaptation penalty: large GPS distance without drift explanation
+    # Cross-domain adaptation: how well metadata changes explain detected drift
+    adaptation_score = metadata_consistency
+    
+    # Penalize if GPS drift present without latent drift explanation
     if gps_distance > 100 and latent_divergence < 0.1:
-        adaptation_score = 0.5  # Partial adaptation
-    elif abs(fault_delta) > 0.1 and latent_divergence > 0.3:
-        adaptation_score = 0.9  # Good adaptation
-    elif abs(confidence_delta) > 0.1 and latent_divergence > 0.2:
-        adaptation_score = 0.85
-    else:
-        adaptation_score = min(0.95, metadata_consistency)
+        adaptation_score *= 0.6
+    # Boost if fault/confidence changes align with drift direction
+    if abs(fault_delta) > 0.05 and latent_divergence > 0.1:
+        adaptation_score = min(1.0, adaptation_score * 1.1)
+    if abs(confidence_delta) > 0.05 and latent_divergence > 0.1:
+        adaptation_score = min(1.0, adaptation_score * 1.05)
+    
+    adaptation_score = float(np.clip(adaptation_score, 0, 1))
     
     # 7. RELIABILITY ASSESSMENT
     drift_magnitude = drift_results.get('drift_magnitude', (1 - kernel_alignment) * 100)
     if drift_magnitude > 50:
         validation_status = 'HIGH_DRIFT'
         confidence = 0.95 if adaptation_score > 0.8 else 0.7
-    elif drift_magnitude > 20:
+    elif drift_magnitude > 25:
         validation_status = 'MODERATE_DRIFT'
-        confidence = 0.85
-    else:
+        confidence = 0.85 if adaptation_score > 0.7 else 0.75
+    elif drift_magnitude > 10:
         validation_status = 'LOW_DRIFT'
         confidence = 0.9 if adaptation_score > 0.8 else 0.75
+    else:
+        validation_status = 'MINIMAL_DRIFT'
+        confidence = 0.95
     
     return {
         'gps_distance': float(gps_distance),
