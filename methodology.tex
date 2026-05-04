@@ -1,0 +1,141 @@
+\section{Methodology}
+
+The general strategy throughout this project was to ask whether an IoT camera could
+flag its own model obsolescence without ever seeing a labelled fault or a human
+annotation. The answer we pursued was reconstruction-based: train a generative model
+on a clean reference period, then watch how hard the same model struggles to
+reconstruct images from a later deployment period. A rising reconstruction error means
+the world has changed in ways the model was not prepared for --- which is exactly the
+kind of quiet warning a real deployment system needs.
+
+\subsection{Feature Extraction and Pre-processing}
+
+Everything starts with turning raw pixel data into something a neural network can work
+with efficiently. For histogram-based representations each image was summarised into a
+$768$-dimensional feature vector by computing per-channel RGB histograms with $256$
+bins,
+\begin{equation}
+    \mathbf{h} = \bigl[\,h_R(1),\ldots,h_R(256),\;h_G(1),\ldots,h_G(256),\;
+                        h_B(1),\ldots,h_B(256)\,\bigr] \in \mathbb{R}^{768},
+    \label{eq:histogram}
+\end{equation}
+while for the convolutional pipelines images were resized to a fixed spatial resolution
+and normalised to $[0,1]$ before being fed into mini-batch data loaders.
+
+\subsection{Autoencoder Architectures}
+
+\subsubsection{Variational Autoencoder (VAE)}
+The first architecture is a fully-connected VAE. The encoder maps the input
+$\mathbf{x}\in\mathbb{R}^{768}$ through layers of sizes
+$768\!\to\!512\!\to\!256\!\to\!128$, then outputs the parameters
+$(\boldsymbol{\mu},\log\boldsymbol{\sigma}^2)\in\mathbb{R}^{64}$ of a diagonal
+Gaussian. A sample is drawn via the reparameterisation trick,
+\begin{equation}
+    \mathbf{z} = \boldsymbol{\mu} + \boldsymbol{\sigma}\odot\boldsymbol{\varepsilon},
+    \qquad \boldsymbol{\varepsilon}\sim\mathcal{N}(\mathbf{0},\mathbf{I}),
+    \label{eq:reparam}
+\end{equation}
+and the decoder mirrors the encoder in reverse. The training objective combines
+binary-cross-entropy reconstruction loss with a $\beta$-weighted KL penalty,
+\begin{equation}
+    \mathcal{L}_\text{VAE} = \mathbb{E}\bigl[-\log p(\mathbf{x}\mid\mathbf{z})\bigr]
+      + \beta\,D_\text{KL}\!\bigl(\,q(\mathbf{z}\mid\mathbf{x})\;\|\;
+                                    p(\mathbf{z})\bigr),\quad \beta=0.4.
+    \label{eq:vae_loss}
+\end{equation}
+
+\subsubsection{Convolutional Autoencoder (ConvAE)}
+For raw-image pipelines the backbone switches to a convolutional architecture whose
+encoder stacks three \texttt{Conv2D}--\texttt{MaxPool} blocks with $32$, $64$, and
+$128$ filters respectively, then flattens into a dense bottleneck. The decoder inverts
+this with transposed convolutions and a final sigmoid layer. Training minimises
+per-pixel MSE,
+\begin{equation}
+    \mathcal{L}_\text{MSE} = \frac{1}{N}\sum_{i=1}^{N}
+                             \bigl\|\mathbf{x}_i - \hat{\mathbf{x}}_i\bigr\|^2.
+    \label{eq:mse}
+\end{equation}
+
+\subsubsection{Residual Attention Autoencoder (ResAttnAE) and Memory AE (MemAE)}
+Two more specialised variants were evaluated in the sensitivity study. ResAttnAE adds
+residual skip connections and a channel-attention gate that re-weights feature maps
+before decoding, giving an attention-weighted reconstruction signal. MemAE introduces a
+fixed memory bank of prototypical patterns: the encoder output is soft-addressed into
+this bank, forcing the decoder to reconstruct only from stored prototypes and amplifying
+the error signal on any unseen distribution.
+
+\subsection{Training Protocol}
+
+All models are trained exclusively on a \emph{reference} period (e.g.\ winter,
+growing-season year one, or summer). Data from that period is split into
+$70\,\%$ training, $15\,\%$ validation, and $15\,\%$ test sets; images from a
+later \emph{target} period are held out entirely and used only for evaluation.
+Training uses early stopping on the validation loss with a patience of ten epochs, so
+models converge without overfitting to the reference distribution.
+
+\subsection{Drift Detection}
+
+\subsubsection{Reconstruction Error as a Drift Signal}
+Once a model is frozen, drift is measured as the increase in reconstruction error when
+moving from reference images to target images. For a set of target images the
+per-image error is
+\begin{equation}
+    e_i = \bigl\|\mathbf{x}_i - \hat{\mathbf{x}}_i\bigr\|^2,
+    \label{eq:per_image_error}
+\end{equation}
+and drift is declared if the distribution of $\{e_i\}$ over the target period is
+significantly higher than over the reference test set, assessed with a
+Mann--Whitney~$U$ test at $\alpha=0.05$.
+
+\subsubsection{Latent-Space Metrics (VAE pipeline)}
+For the VAE pipeline three complementary distance metrics are computed in the
+$64$-dimensional latent space: (i)~MI-LHD, a Jensen--Shannon divergence across latent
+histogram bins; (ii)~STKA, an RBF kernel alignment between the Gram matrices of
+reference and target encodings; and (iii)~Euclidean distance between latent centroids,
+\begin{equation}
+    d_\text{Eucl} = \bigl\|\bar{\mathbf{z}}_\text{ref}
+                           - \bar{\mathbf{z}}_\text{tgt}\bigr\|_2.
+    \label{eq:eucl}
+\end{equation}
+Statistical significance is established with a permutation test that shuffles
+reference/target labels $500$ times and checks whether the observed metric exceeds the
+$95$th percentile of the resulting null distribution.
+
+\subsubsection{Mean Time to Detection (MTTD)}
+To make drift detection operationally meaningful, the MTTD is measured from the
+boundary between the reference and target period. A threshold $\tau$ is set at the
+$95$th percentile of reference reconstruction errors; images in the target stream are
+processed sequentially, and drift is declared the first time $k=3$ consecutive
+errors exceed $\tau$. Assuming a known capture rate $r$ (images per hour), MTTD in
+wall-clock time is
+\begin{equation}
+    \text{MTTD} = \frac{n^*}{r},\qquad
+    n^* = \min\bigl\{n : e_{n-2},e_{n-1},e_n > \tau\bigr\},
+    \label{eq:mttd}
+\end{equation}
+and a cross-domain penalty factor $\phi = \bar{e}_\text{tgt}/\max(e_\text{ref})$
+(capped at $2.0$) summarises how much harder the model struggles in the new domain.
+
+\subsubsection{Streaming Drift Detectors}
+Beyond threshold rules, six literature-based streaming detectors were applied to the
+reconstruction-error time series: ADWIN (adaptive sliding window), Page--Hinkley and
+CUSUM (cumulative-sum sequential tests), a windowed Kolmogorov--Smirnov test,
+DDM (monitors error rate and its standard deviation), and EDDM (monitors
+inter-error distances). Running all six in parallel both cross-validates detections and
+reveals which family of detector is best matched to slowly-evolving environmental
+drift.
+
+\subsection{Sensitivity and Correlation Analysis}
+
+To understand how robust the reconstruction signal is, a threshold sweep from the
+$50$th to the $98$th percentile quantifies precision, recall, F1, and MTTD at every
+operating point. Bootstrap confidence intervals ($B=1000$ resamples, $95\,\%$ CI)
+provide uncertainty estimates for each metric. Finally, to test whether the signal is
+genuinely structural rather than a proxy for surface illumination, six environmental
+variance metrics (brightness, contrast, saturation, edge density, Shannon entropy, and
+colour divergence) are regressed against per-image reconstruction error using Pearson,
+Spearman, and Kendall correlations alongside mutual information. A low correlation
+across all measures is taken as evidence that the autoencoder is responding to deeper
+distributional change rather than to easily-corrected photometric variation.
+
+\end{document}
