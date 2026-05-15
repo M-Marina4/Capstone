@@ -6,14 +6,17 @@ Marina Melkonyan | American University of Armenia
 Train autoencoder on Q1+Q3 streetlight imagery, detect drift via
 MI-LHD, STKA, and reconstruction-error anomaly detection.
 
-Dataset: ~240K images from 22 streetlight cameras (Bristol, UK)
+Dataset 1: ~240K images from 22 streetlight cameras (Bristol, UK)
   - Q1 (Jan-Mar): daytime + nighttime
   - Q3 (Jul-Sep): daytime + nighttime
+Dataset 2: Pomegranate tree time-series (9 sensors, 2021 vs 2022)
+Dataset 3: BMSB sticky-trap IoT camera (476 images, Q3 vs Q4 2024)
 
 Usage:
-    python main.py                    # Full pipeline (train + analyze)
-    python main.py --phase4            # Skip training, load saved model
-    python main.py --daynight daytime  # Filter to daytime only
+    python main.py                    # Dataset 1: Full pipeline (train + analyze)
+    python main.py --phase4           # Dataset 1: Skip training, load saved model
+    python main.py --daynight daytime # Dataset 1: Filter to daytime only
+    python main.py --all              # Run full pipeline + all four notebooks
 """
 
 import os
@@ -257,5 +260,56 @@ def main():
     print(f'{"=" * 80}')
 
 
+def run_all_notebooks():
+    """Execute all project notebooks via nbconvert to reproduce paper figures."""
+    import subprocess
+
+    notebooks = [
+        os.path.join('notebooks', 'drift_detection.ipynb'),
+        os.path.join('notebooks', 'dataset2_drift_detection_pipeline.ipynb'),
+        os.path.join('notebooks', 'dataset3_seasonal_drift_detection.ipynb'),
+        os.path.join('notebooks', 'dataset3_sensitivity_analysis_rq.ipynb'),
+    ]
+
+    print('\n' + '=' * 80)
+    print('RUNNING ALL NOTEBOOKS (paper figures & supplementary results)')
+    print('=' * 80)
+
+    for nb in notebooks:
+        if not os.path.exists(nb):
+            print(f'  [SKIP] {nb} — file not found')
+            continue
+        print(f'\n  Executing: {nb}')
+        t0 = time.time()
+        result = subprocess.run(
+            [sys.executable, '-m', 'nbconvert', '--to', 'notebook',
+             '--execute', '--inplace',
+             '--ExecutePreprocessor.timeout=3600',
+             '--ExecutePreprocessor.kernel_name=python3',
+             nb],
+            capture_output=True, text=True
+        )
+        elapsed = time.time() - t0
+        if result.returncode == 0:
+            print(f'  [OK] Completed in {elapsed/60:.1f} min — outputs saved in-place')
+        else:
+            print(f'  [ERROR] {nb} failed after {elapsed/60:.1f} min')
+            if result.stderr:
+                # Print last 20 lines of stderr for diagnostics
+                stderr_lines = result.stderr.strip().splitlines()
+                for line in stderr_lines[-20:]:
+                    print(f'    {line}')
+
+    print('\n' + '=' * 80)
+    print('All notebooks complete. Figures are embedded in each .ipynb file.')
+    print('=' * 80)
+
+
 if __name__ == '__main__':
-    main()
+    if '--all' in sys.argv:
+        # Remove --all so the Dataset 1 pipeline runs normally first
+        sys.argv.remove('--all')
+        main()
+        run_all_notebooks()
+    else:
+        main()
