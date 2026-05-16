@@ -2,7 +2,7 @@
 
 **Capstone Project** — Marina Melkonyan | American University of Armenia  
 **Supervisor:** Gurgen Hovakimyan  
-**Paper:** *"IoT Drift: Catch Me If You Can"* — IEEE conference format
+**Paper:** *"IoT Drift: Catch Me If You Can"*
 
 ---
 
