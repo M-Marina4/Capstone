@@ -324,7 +324,7 @@ If `results/q1_features_all.npy` and `results/q3_features_all.npy` already exist
 
 **Option B — Start from raw zip archives:**
 
-1. Download the StreetCare dataset zip archives from Zenodo:
+1. Download the StreetCare dataset zip archives from Zenodo:(download of zip files can take 1 to 2 days)
    - [https://zenodo.org/records/17781192](https://zenodo.org/records/17781192)
    - [https://zenodo.org/records/17859120](https://zenodo.org/records/17859120)
 2. Store the zip files in the data/raw/ folder.
