@@ -48,7 +48,8 @@ python main.py --all
 
 **Research Question:** 
 *What is the sensitivity of unsupervised reconstruction loss as a trigger for drift adaptation in IoT imagery, and how does this sensitivity correlate with the degree of environmental variance across long-term data streams?*
-*What is the sensitivity of unsupervised reconstruction loss as a trigger for drift adaptation in IoT imagery, and how does this sensitivity correlate with the degree of environmental variance across long-term data streams?*
+
+*How does the mean time to detection (MTTD) of the validator change when applied to cross-domain data streams compared to its baseline performance in the source domain?*
 
 In plain terms: *Does a model that was trained on old data produce noticeably higher errors when it sees new data? And does it produce even higher errors when the environment is visually more variable (e.g., foggy days, changing seasons)?*
 
