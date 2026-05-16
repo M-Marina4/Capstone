@@ -327,9 +327,10 @@ If `results/q1_features_all.npy` and `results/q3_features_all.npy` already exist
 1. Download the StreetCare dataset zip archives from Zenodo:
    - [https://zenodo.org/records/17781192](https://zenodo.org/records/17781192)
    - [https://zenodo.org/records/17859120](https://zenodo.org/records/17859120)
-2. Open `extract_images.py` and `extract_features_fast.py`. Near the top of each file, update the path constants (labeled with comments) to point to where you saved the zip files on your computer.
+2. Store the zip files in the data/raw/ folder.
+3. Open `extract_images.py` and `extract_features_fast.py`. Near the top of each file, update the path constants (labeled with comments) to point to where you saved the zip files on your computer.
    - Look for lines like `BASE_DIR = r"C:\Users\..."` and change them to your path.
-3. Run the preprocessing steps described in [Step 0](#step-0--preprocessing-dataset-1-only--skip-if-feature-cache-already-exists).
+4. Run the preprocessing steps described in [Step 0](#step-0--preprocessing-dataset-1-only--skip-if-feature-cache-already-exists).
 
 ### Dataset 2 — Pomegranate Tree Time Series
 
