@@ -10,9 +10,9 @@
 
 > **This section explains the project in simple terms. Skip to [Quick Start](#quick-start) if you already know machine learning.**
 
-Imagine a camera attached to a streetlight that takes a photo every few minutes. Over months and years, the images gradually look different — the lighting changes with seasons, leaves appear and disappear, the angle of sunlight shifts. The camera hardware has not broken, but the *statistical pattern* of the images has changed. In machine learning, this change is called **concept drift** (or **feature drift**).
+Imagine a camera attached to a streetlight that takes a photo every few minutes. Over months and years, the images gradually look different - the lighting changes with seasons, leaves appear and disappear, the angle of sunlight shifts. The camera hardware has not broken, but the *statistical pattern* of the images has changed. In machine learning, this change is called **concept drift** (or **feature drift**).
 
-**Why does drift matter?** Machine learning models are trained on historical data. When the real world drifts away from that historical data, model predictions quietly become less reliable — often without any warning. In IoT systems (smart streetlights, farm sensors, security cameras), this can lead to false alarms or missed events. Detecting drift early lets operators retrain the model or inspect the hardware before things go wrong.
+**Why does drift matter?** Machine learning models are trained on historical data. When the real world drifts away from that historical data, model predictions quietly become less reliable - often without any warning. In IoT systems (smart streetlights, farm sensors, security cameras), this can lead to false alarms or missed events. Detecting drift early lets operators retrain the model or inspect the hardware before things go wrong.
 
 **What is an autoencoder?** An autoencoder is a neural network taught to compress an image (or set of measurements) into a small set of numbers (the *latent space*), and then reconstruct the original image from those numbers. After training on normal data, it reconstructs normal images accurately. When it encounters data from a shifted distribution, it struggles to reconstruct it well - the reconstruction error goes up. We use this elevated error as a *drift signal*.
 
@@ -60,7 +60,7 @@ IoT sensor networks continuously produce visual data whose statistical propertie
 
 ### Dataset 1 — Bristol Streetlight Cameras (StreetCare)
 
-> **What it is:** Cameras mounted on streetlights in Bristol, UK. Each camera sends images at regular intervals. We compare winter images (Q1, January–March) against summer images (Q3, July–September) to study seasonal drift — the difference in appearance caused by season, not by hardware failure.
+> **What it is:** Cameras mounted on streetlights in Bristol, UK. Each camera sends images at regular intervals. We compare winter images (Q1, January–March) against summer images (Q3, July–September) to study seasonal drift - the difference in appearance caused by season, not by hardware failure.
 
 - **Source:** StreetCare open dataset, Bristol, UK
 - **Size:** ~240,000 images from 22 streetlight cameras, 2021–2025
@@ -81,7 +81,7 @@ IoT sensor networks continuously produce visual data whose statistical propertie
 
 ### Dataset 3 — BMSB Sticky Trap Images (DatasetV3)
 
-> **What it is:** Camera-equipped sticky traps placed in a field to monitor Brown Marmorated Stink Bugs (BMSB) — an invasive agricultural pest. Each trap is photographed regularly. Over the season, the trap fills up with insects and is replaced — causing visual drift. We train on summer (Q3) and test on autumn (Q4) to detect both seasonal change and trap-replacement drift.
+> **What it is:** Camera-equipped sticky traps placed in a field to monitor Brown Marmorated Stink Bugs (BMSB) - an invasive agricultural pest. Each trap is photographed regularly. Over the season, the trap fills up with insects and is replaced — causing visual drift. We train on summer (Q3) and test on autumn (Q4) to detect both seasonal change and trap-replacement drift.
 
 - **Source:** IoT sticky-trap camera monitoring Brown Marmorated Stink Bug (*Halyomorpha halys*)
 - **Size:** 476 images (1920×1080), June–November 2024; 9 sequential trap replacements over the season
@@ -107,9 +107,9 @@ IoT sensor networks continuously produce visual data whose statistical propertie
 
 ### Model Architectures
 
-> **Plain language:** Four different autoencoder designs are compared. The idea for all four is the same — compress images into a small code, then reconstruct them. Models differ in *how* they do the compression. More complex models (ResAttnAE, MemAE) can pick up on subtler drift patterns.
+> **Plain language:** Four different autoencoder designs are compared. The idea for all four is the same - compress images into a small code, then reconstruct them. Models differ in *how* they do the compression. More complex models (ResAttnAE, MemAE) can pick up on subtler drift patterns.
 
-Four autoencoder architectures are compared — primarily across Datasets 2 and 3; Dataset 1 uses the VAE:
+Four autoencoder architectures are compared - primarily across Datasets 2 and 3; Dataset 1 uses the VAE:
 
 | Model | Description |
 |-------|-------------|
@@ -147,7 +147,7 @@ Decoder:  z(128) → Linear(128) → BN → LeakyReLU(0.1) → Dropout(0.15)
 
 > **Plain language:** After encoding images into the latent space, we need a number that says "how far apart are the Q1 and Q3 distributions?" We use three metrics and combine them into a single composite score.
 >
-> - **MI-LHD** — Think of it as: "How different are the histograms of each latent dimension, on average?" (uses Jensen-Shannon divergence — 0 means identical, 1 means completely different)
+> - **MI-LHD** — Think of it as: "How different are the histograms of each latent dimension, on average?" (uses Jensen-Shannon divergence - 0 means identical, 1 means completely different)
 > - **STKA** — "How well do the geometric structures of the two point clouds align?" (1 = perfectly aligned, 0 = nothing in common)
 > - **Euclidean** — "How far apart are the average positions of Q1 and Q3 points in latent space?"
 > - **Composite** — A weighted blend of all three, expressed as a percentage. Below 10% is minimal; 20–35% is moderate; above 35% is high drift.
@@ -156,7 +156,7 @@ Decoder:  z(128) → Linear(128) → BN → LeakyReLU(0.1) → Dropout(0.15)
 
 | Metric | Description |
 |--------|-------------|
-| **MI-LHD** | Metadata-Invariant Latent Histogram Divergence — mean Jensen-Shannon divergence across all 128 latent dimensions |
+| **MI-LHD** | Metadata-Invariant Latent Histogram Divergence - mean Jensen-Shannon divergence across all 128 latent dimensions |
 | **STKA** | Spatio-Temporal Kernel Alignment — RBF kernel alignment between Q1 and Q3 latent clouds (subsampled to 1,000 points) |
 | **Euclidean** | L2 distance between Q1 and Q3 latent centroids |
 | **Composite** | `(0.5 × MI-LHD + 0.3 × (1 − STKA) + 0.2 × min(1, Euclidean)) × 100` |
@@ -187,13 +187,13 @@ Decoder:  z(128) → Linear(128) → BN → LeakyReLU(0.1) → Dropout(0.15)
 
 The validation pipeline (`src/`) corroborates drift findings with multiple independent checks:
 
-- **`src/validator.py`** — GPS spatial distance, fault-flag correlation, brightness consistency checks
-- **`src/drift_classifier.py`** — Classifies drift as VIRTUAL (expected seasonal variation) vs REAL (sensor degradation) vs MIXED
-- **`src/anomaly_detector.py`** — `ReconstructionAnomalyDetector` fits Q1 95th-percentile threshold; `AnomalyDriftEnsemble` aggregates multiple detectors
+- **`src/validator.py`** - GPS spatial distance, fault-flag correlation, brightness consistency checks
+- **`src/drift_classifier.py`** - Classifies drift as VIRTUAL (expected seasonal variation) vs REAL (sensor degradation) vs MIXED
+- **`src/anomaly_detector.py`** - `ReconstructionAnomalyDetector` fits Q1 95th-percentile threshold; `AnomalyDriftEnsemble` aggregates multiple detectors
 - **`src/decomp.py`** — STL decomposition separates trend and seasonal components of the drift signal
-- **`src/drift_detectors.py`** — `DistributionShiftAnalyzer` (mean shift, covariance shift, per-dimension KS tests); `DriftConfidenceEstimator` aggregates into an overall confidence score
-- **Bootstrap CI** — 20-iteration bootstrap with 70% subsampling for 95% confidence intervals on MI-LHD and STKA
-- **Per-camera drift** — MI-LHD and STKA computed independently for each of the 22 cameras
+- **`src/drift_detectors.py`** - `DistributionShiftAnalyzer` (mean shift, covariance shift, per-dimension KS tests); `DriftConfidenceEstimator` aggregates into an overall confidence score
+- **Bootstrap CI** - 20-iteration bootstrap with 70% subsampling for 95% confidence intervals on MI-LHD and STKA
+- **Per-camera drift** - MI-LHD and STKA computed independently for each of the 22 cameras
 
 **Sensitivity analysis hyperparameters (Dataset 3):**
 
@@ -472,7 +472,7 @@ All figures are produced entirely by code — no manual image editing.
 
 > **What the numbers mean in plain language:**
 > - A **composite drift of ~20–28%** is "moderate" — the seasonal change between winter and summer is real and statistically significant, but the cameras are still functioning (it is not hardware degradation).
-> - **100% detection rate** means every sensor flagged a change between years — the autoencoders reliably detected cross-season drift even without any human-labeled examples.
+> - **100% detection rate** means every sensor flagged a change between years - the autoencoders reliably detected cross-season drift even without any human-labeled examples.
 > - **MTTD = 14 frames** means the system detected the drift after only 14 images (~66 hours of real time), which is a fast alarm given the slow pace of seasonal change.
 > - **Pearson |r| ≤ 0.07** means reconstruction error is nearly uncorrelated with environmental noise variables (brightness, color contrast, etc.) — the drift signal is genuine, not just lighting variation.
 
