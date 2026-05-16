@@ -46,10 +46,7 @@ python main.py --all
 
 ## Project Objective
 
-**Research Question:** 
-*What is the sensitivity of unsupervised reconstruction loss as a trigger for drift adaptation in IoT imagery, and how does this sensitivity correlate with the degree of environmental variance across long-term data streams?*
-
-*How does the mean time to detection (MTTD) of the validator change when applied to cross-domain data streams compared to its baseline performance in the source domain?*
+**Research Question:** *What is the sensitivity of unsupervised reconstruction loss as a trigger for drift adaptation in IoT imagery, and how does this sensitivity correlate with the degree of environmental variance across long-term data streams?*
 
 In plain terms: *Does a model that was trained on old data produce noticeably higher errors when it sees new data? And does it produce even higher errors when the environment is visually more variable (e.g., foggy days, changing seasons)?*
 
@@ -327,18 +324,24 @@ If `results/q1_features_all.npy` and `results/q3_features_all.npy` already exist
 
 **Option B — Start from raw zip archives:**
 
-1. Download the StreetCare dataset zip archives from the official source.
+1. Download the StreetCare dataset zip archives from Zenodo:
+   - [https://zenodo.org/records/17781192](https://zenodo.org/records/17781192)
+   - [https://zenodo.org/records/17859120](https://zenodo.org/records/17859120)
 2. Open `extract_images.py` and `extract_features_fast.py`. Near the top of each file, update the path constants (labeled with comments) to point to where you saved the zip files on your computer.
    - Look for lines like `BASE_DIR = r"C:\Users\..."` and change them to your path.
 3. Run the preprocessing steps described in [Step 0](#step-0--preprocessing-dataset-1-only--skip-if-feature-cache-already-exists).
 
 ### Dataset 2 — Pomegranate Tree Time Series
 
+**Source:** [https://zenodo.org/records/10829695](https://zenodo.org/records/10829695)
+
 Images are included under `data/raw/Dataset_pomegranate_tree_time_series/`. **No additional setup required.**
 
 If you move the dataset to a different folder, open `notebooks/dataset2_drift_detection_pipeline.ipynb` and update the `dataset_root` variable in the `CONFIG` cell (Cell 2) to match the new path.
 
 ### Dataset 3 — BMSB Sticky Traps
+
+**Source:** [https://zenodo.org/records/16088064](https://zenodo.org/records/16088064)
 
 Images, polygon annotations, and binary masks are included under `data/raw/DatasetV3/`. **No additional setup required.**
 
