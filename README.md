@@ -14,9 +14,9 @@ Imagine a camera attached to a streetlight that takes a photo every few minutes.
 
 **Why does drift matter?** Machine learning models are trained on historical data. When the real world drifts away from that historical data, model predictions quietly become less reliable — often without any warning. In IoT systems (smart streetlights, farm sensors, security cameras), this can lead to false alarms or missed events. Detecting drift early lets operators retrain the model or inspect the hardware before things go wrong.
 
-**What is an autoencoder?** An autoencoder is a neural network taught to compress an image (or set of measurements) into a small set of numbers (the *latent space*), and then reconstruct the original image from those numbers. After training on normal data, it reconstructs normal images accurately. When it encounters data from a shifted distribution, it struggles to reconstruct it well — the reconstruction error goes up. We use this elevated error as a *drift signal*.
+**What is an autoencoder?** An autoencoder is a neural network taught to compress an image (or set of measurements) into a small set of numbers (the *latent space*), and then reconstruct the original image from those numbers. After training on normal data, it reconstructs normal images accurately. When it encounters data from a shifted distribution, it struggles to reconstruct it well - the reconstruction error goes up. We use this elevated error as a *drift signal*.
 
-**What are "features"?** Instead of feeding raw pixel values, we first summarize each image as a compact numerical description. For Dataset 1, we count how many pixels of each brightness level appear in the red, green, and blue channels (a histogram) — producing a 768-number summary per image. For Datasets 2 and 3, raw image tensors go directly into convolutional networks.
+**What are "features"?** Instead of feeding raw pixel values, we first summarize each image as a compact numerical description. For Dataset 1, we count how many pixels of each brightness level appear in the red, green, and blue channels (a histogram) - producing a 768-number summary per image. For Datasets 2 and 3, raw image tensors go directly into convolutional networks.
 
 **What this project does:**
 1. Trains autoencoders on *reference-period* data (e.g., winter, or 2021)
