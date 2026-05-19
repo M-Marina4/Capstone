@@ -27,7 +27,6 @@ data/organized_images/
 *.zip
 *.jpg
 *.jpeg
-*.png
 
 # Allow metadata CSV explicitly
 !data/metadata/*.csv
